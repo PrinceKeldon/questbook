@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useAuth } from '@/hooks/useAuth'
 import { supabase } from '@/lib/supabase'
+import { generatePersonalizedPDF } from '@/lib/generatePDF'
 import { QuestionnaireResponse } from '@/types'
 
 export default function ResultsPage() {
@@ -15,6 +16,8 @@ export default function ResultsPage() {
     null
   )
   const [loading, setLoading] = useState(true)
+  const [isGeneratingPDF, setIsGeneratingPDF] = useState(false)
+  const [pdfError, setPdfError] = useState<string | null>(null)
 
   useEffect(() => {
     loadResults()
@@ -43,8 +46,21 @@ export default function ResultsPage() {
   }
 
   const handleDownloadPDF = async () => {
-    // TODO: Implement PDF generation
-    console.log('Generating PDF...')
+    if (!questionnaire || !user) return
+
+    setIsGeneratingPDF(true)
+    setPdfError(null)
+
+    try {
+      await generatePersonalizedPDF({
+        questionnaire,
+        userName: user.email?.split('@')[0] || 'User',
+      })
+    } catch (error) {
+      setPdfError(error instanceof Error ? error.message : 'Failed to generate PDF')
+    } finally {
+      setIsGeneratingPDF(false)
+    }
   }
 
   const handleCreateVersion = async () => {
@@ -94,17 +110,29 @@ export default function ResultsPage() {
         </p>
 
         {questionnaire.completed_at && (
-          <div className="flex gap-4 justify-center">
-            <button onClick={handleDownloadPDF} className="btn btn-primary">
-              ↓ Download PDF
-            </button>
-            <button
-              onClick={handleCreateVersion}
-              className="btn btn-secondary"
-            >
-              Create Version {questionnaire.version + 1}
-            </button>
-          </div>
+          <>
+            <div className="flex gap-4 justify-center">
+              <button
+                onClick={handleDownloadPDF}
+                disabled={isGeneratingPDF}
+                className="btn btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {isGeneratingPDF ? '⟳ Generating PDF...' : '↓ Download PDF'}
+              </button>
+              <button
+                onClick={handleCreateVersion}
+                className="btn btn-secondary"
+              >
+                Create Version {questionnaire.version + 1}
+              </button>
+            </div>
+
+            {pdfError && (
+              <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded text-sm text-red-700">
+                {pdfError}
+              </div>
+            )}
+          </>
         )}
       </div>
 
@@ -316,8 +344,12 @@ export default function ResultsPage() {
 
       {/* Footer Actions */}
       <div className="flex gap-4 justify-center pb-12">
-        <button onClick={handleDownloadPDF} className="btn btn-primary">
-          Download PDF
+        <button
+          onClick={handleDownloadPDF}
+          disabled={isGeneratingPDF}
+          className="btn btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          {isGeneratingPDF ? '⟳ Generating PDF...' : '↓ Download PDF'}
         </button>
         <button
           onClick={() => navigate('/dashboard')}
