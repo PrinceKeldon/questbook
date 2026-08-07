@@ -1,159 +1,150 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useAuth } from '@/hooks/useAuth'
 import { useQuestStore } from '@/store/questStore'
-import { supabase } from '@/lib/supabase'
-import { QuestModule, Pattern } from '@/types'
+import { Question } from '@/types'
+import RoundTransition from '@/components/RoundTransition'
+import QuestionCard from '@/components/QuestionCard'
+import RoundProgress from '@/components/RoundProgress'
+import SaveIndicator from '@/components/SaveIndicator'
 
-const QUEST_QUESTIONS: QuestModule = {
-  id: 'architecture-of-you-01',
-  quest_id: 'architecture-of-you',
-  module_order: 1,
-  title: 'The Architecture of You',
-  is_free: false,
-  questions: [
-    // Round 1 - Pattern Finder
-    {
-      id: 'q1',
-      number: 1,
-      text: "When someone says 'I'm stuck,' what kind of problem are they usually asking you to help with?",
-      hint: 'Not what you'd like them to ask. What do they actually ask?',
-      round: 1,
-      category: 'problems',
-    },
-    {
-      id: 'q2',
-      number: 2,
-      text: 'Think about the last ten people you've genuinely helped. What did they walk away with?',
-      hint: 'Examples: clarity, confidence, a website, a song, a strategy, connections, a system, an introduction, better writing.',
-      round: 1,
-      category: 'outcomes',
-    },
-    {
-      id: 'q3',
-      number: 3,
-      text: 'What kinds of work make you completely lose track of time?',
-      hint: 'Not because they're fun — because they pull you in.',
-      round: 1,
-      category: 'flow',
-    },
-    {
-      id: 'q4',
-      number: 4,
-      text: 'What do you notice that most people seem blind to?',
-      hint: 'Could be in people, products, businesses, or culture.',
-      round: 1,
-      category: 'observation',
-    },
-    {
-      id: 'q5',
-      number: 5,
-      text: 'When have you been paid, or repeatedly thanked, for something that felt almost unfairly easy?',
-      hint: 'Those moments are the most valuable data.',
-      round: 1,
-      category: 'ease',
-    },
-    {
-      id: 'q6',
-      number: 6,
-      text: 'Someone hands you £50,000. You have 90 days. You can't spend it on ads. Turn it into £150,000. What would you build, and why that?',
-      round: 1,
-      category: 'instinct',
-    },
-    // Round 2 - Friction Test
-    {
-      id: 'q7',
-      number: 7,
-      text: 'What work drains you, even if you're good at it?',
-      round: 2,
-      category: 'drain',
-    },
-    {
-      id: 'q8',
-      number: 8,
-      text: 'What work energizes you, even when nobody is watching?',
-      round: 2,
-      category: 'energy',
-    },
-    {
-      id: 'q9',
-      number: 9,
-      text: 'What kinds of people seem to "find" you naturally?',
-      hint: 'Artists, founders, developers, executives, community leaders, students?',
-      round: 2,
-      category: 'people',
-    },
-    {
-      id: 'q10',
-      number: 10,
-      text: "What compliments have you heard so many times that you've stopped believing they're special?",
-      round: 2,
-      category: 'compliments',
-    },
-    {
-      id: 'q11',
-      number: 11,
-      text: 'If every qualification disappeared tomorrow — no CV, no degree, no title — how would you convince someone to hire you?',
-      round: 2,
-      category: 'essence',
-    },
-    // Round 3 - Market Reality Test
-    {
-      id: 'q12',
-      number: 12,
-      text: 'What measurable change can you repeatedly create for someone else?',
-      hint: 'Examples: launch faster, increase revenue, write clearer copy, grow a community, automate a task, connect the right people.',
-      round: 3,
-      category: 'measurable',
-    },
-    {
-      id: 'q13',
-      number: 13,
-      text: 'If you interviewed ten people you've worked with, what would all ten agree you're unusually good at?',
-      round: 3,
-      category: 'consensus',
-    },
-    {
-      id: 'q14',
-      number: 14,
-      text: 'If you disappeared from a project tomorrow, what would be hardest to replace?',
-      round: 3,
-      category: 'irreplaceable',
-    },
-    {
-      id: 'q15',
-      number: 15,
-      text: "What's the hardest thing you've learned that now feels effortless?",
-      round: 3,
-      category: 'mastery',
-    },
-    {
-      id: 'q16',
-      number: 16,
-      text: 'People don't realize I can actually _______________.',
-      round: 3,
-      category: 'hidden',
-    },
-  ],
-}
+const QUEST_QUESTIONS: Question[] = [
+  // Round 1 - Pattern Finder
+  {
+    id: 'q1',
+    number: 1,
+    text: "When someone says 'I'm stuck,' what kind of problem are they usually asking you to help with?",
+    hint: "Not what you'd like them to ask. What do they actually ask?",
+    round: 1,
+    category: 'problems',
+  },
+  {
+    id: 'q2',
+    number: 2,
+    text: "Think about the last ten people you've genuinely helped. What did they walk away with?",
+    hint: 'Examples: clarity, confidence, a website, a song, a strategy, connections, a system, an introduction, better writing.',
+    round: 1,
+    category: 'outcomes',
+  },
+  {
+    id: 'q3',
+    number: 3,
+    text: 'What kinds of work make you completely lose track of time?',
+    hint: "Not because they're fun — because they pull you in.",
+    round: 1,
+    category: 'flow',
+  },
+  {
+    id: 'q4',
+    number: 4,
+    text: 'What do you notice that most people seem blind to?',
+    hint: 'Could be in people, products, businesses, or culture.',
+    round: 1,
+    category: 'observation',
+  },
+  {
+    id: 'q5',
+    number: 5,
+    text: 'When have you been paid, or repeatedly thanked, for something that felt almost unfairly easy?',
+    hint: 'Those moments are the most valuable data.',
+    round: 1,
+    category: 'ease',
+  },
+  {
+    id: 'q6',
+    number: 6,
+    text: "Someone hands you £50,000. You have 90 days. You can't spend it on ads. Turn it into £150,000. What would you build, and why that?",
+    round: 1,
+    category: 'instinct',
+  },
+  // Round 2 - Friction Test
+  {
+    id: 'q7',
+    number: 7,
+    text: "What work drains you, even if you're good at it?",
+    round: 2,
+    category: 'drain',
+  },
+  {
+    id: 'q8',
+    number: 8,
+    text: 'What work energizes you, even when nobody is watching?',
+    round: 2,
+    category: 'energy',
+  },
+  {
+    id: 'q9',
+    number: 9,
+    text: 'What kinds of people seem to "find" you naturally?',
+    hint: 'Artists, founders, developers, executives, community leaders, students?',
+    round: 2,
+    category: 'people',
+  },
+  {
+    id: 'q10',
+    number: 10,
+    text: "What compliments have you heard so many times that you've stopped believing they're special?",
+    round: 2,
+    category: 'compliments',
+  },
+  {
+    id: 'q11',
+    number: 11,
+    text: "If every qualification disappeared tomorrow — no CV, no degree, no title — how would you convince someone to hire you?",
+    round: 2,
+    category: 'essence',
+  },
+  // Round 3 - Market Reality Test
+  {
+    id: 'q12',
+    number: 12,
+    text: 'What measurable change can you repeatedly create for someone else?',
+    hint: 'Examples: launch faster, increase revenue, write clearer copy, grow a community, automate a task, connect the right people.',
+    round: 3,
+    category: 'measurable',
+  },
+  {
+    id: 'q13',
+    number: 13,
+    text: "If you interviewed ten people you've worked with, what would all ten agree you're unusually good at?",
+    round: 3,
+    category: 'consensus',
+  },
+  {
+    id: 'q14',
+    number: 14,
+    text: 'If you disappeared from a project tomorrow, what would be hardest to replace?',
+    round: 3,
+    category: 'irreplaceable',
+  },
+  {
+    id: 'q15',
+    number: 15,
+    text: "What's the hardest thing you've learned that now feels effortless?",
+    round: 3,
+    category: 'mastery',
+  },
+  {
+    id: 'q16',
+    number: 16,
+    text: 'People don\'t realize I can actually _______________.',
+    round: 3,
+    category: 'hidden',
+  },
+]
 
 export default function QuestPage() {
   const { questId } = useParams<{ questId: string }>()
   const { user } = useAuth()
   const navigate = useNavigate()
-  const {
-    responses,
-    currentRound,
-    patterns,
-    updateResponse,
-    detectPatterns,
-    initializeQuestionnaire,
-    saveProgress,
-  } = useQuestStore()
+  const { responses, updateResponse, initializeQuestionnaire, saveProgress } =
+    useQuestStore()
 
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0)
-  const [showPatterns, setShowPatterns] = useState(false)
-  const [detectedPatterns, setDetectedPatterns] = useState<Pattern[]>([])
+  const [showRoundTransition, setShowRoundTransition] = useState(false)
+  const [isSaving, setIsSaving] = useState(false)
+  const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle')
+  const [nextRound, setNextRound] = useState<number | null>(null)
 
   useEffect(() => {
     if (user?.id && questId) {
@@ -161,29 +152,88 @@ export default function QuestPage() {
     }
   }, [user?.id, questId])
 
-  const questQuestions = QUEST_QUESTIONS.questions
-  const currentQuestion = questQuestions[currentQuestionIndex]
-  const roundQuestions = questQuestions.filter((q) => q.round === currentRound)
-  const questionsBeforeRound = questQuestions.filter((q) => q.round < currentRound)
-  const isLastQuestion = currentQuestionIndex === questQuestions.length - 1
-  const isRoundComplete = roundQuestions.every((q) => responses[q.id])
+  // Keyboard navigation
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'ArrowRight' || e.key === 'Enter') {
+        handleNext()
+      } else if (e.key === 'ArrowLeft') {
+        handlePrevious()
+      }
+    }
+
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [currentQuestionIndex])
+
+  const currentQuestion = QUEST_QUESTIONS[currentQuestionIndex]
+  const currentRound = currentQuestion.round
+  const questionsInRound = QUEST_QUESTIONS.filter((q) => q.round === currentRound)
+  const completedInRound = questionsInRound.filter(
+    (q) => responses[q.id]?.trim()
+  ).length
+
+  const isLastQuestion = currentQuestionIndex === QUEST_QUESTIONS.length - 1
+  const isRoundLastQuestion =
+    currentQuestionIndex === QUEST_QUESTIONS.findIndex((q, i, arr) =>
+      i === arr.length - 1 || arr[i + 1].round !== currentRound
+    )
 
   const handleAnswer = (answer: string) => {
     updateResponse(currentQuestion.id, answer)
   }
 
-  const handleNext = () => {
-    if (currentQuestionIndex < questQuestions.length - 1) {
-      setCurrentQuestionIndex(currentQuestionIndex + 1)
+  const autoSave = useCallback(async () => {
+    if (!user?.id || !questId) return
+    setIsSaving(true)
+    setSaveStatus('saving')
 
-      // Detect patterns after every question
-      detectPatterns()
-
-      // Auto-save progress
-      if (user?.id && questId) {
-        saveProgress(user.id, questId)
-      }
+    try {
+      await saveProgress()
+      setSaveStatus('saved')
+      setTimeout(() => setSaveStatus('idle'), 2000)
+    } catch (error) {
+      console.error('Save failed:', error)
+      setSaveStatus('idle')
+    } finally {
+      setIsSaving(false)
     }
+  }, [saveProgress])
+
+  // Auto-save on answer change
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (Object.keys(responses).length > 0) {
+        autoSave()
+      }
+    }, 1000)
+
+    return () => clearTimeout(timer)
+  }, [responses, autoSave])
+
+  const handleNext = () => {
+    if (!responses[currentQuestion.id]?.trim()) {
+      return // Don't advance if empty
+    }
+
+    if (isRoundLastQuestion && !isLastQuestion) {
+      // Show round transition
+      const nextRoundNum = currentRound + 1
+      setNextRound(nextRoundNum)
+      setShowRoundTransition(true)
+    } else if (currentQuestionIndex < QUEST_QUESTIONS.length - 1) {
+      setCurrentQuestionIndex(currentQuestionIndex + 1)
+    }
+  }
+
+  const handleRoundTransitionComplete = () => {
+    setShowRoundTransition(false)
+    // Find first question of next round
+    const nextQuestionIndex = QUEST_QUESTIONS.findIndex(
+      (q) => q.round === nextRound
+    )
+    setCurrentQuestionIndex(nextQuestionIndex)
+    setNextRound(null)
   }
 
   const handlePrevious = () => {
@@ -194,144 +244,125 @@ export default function QuestPage() {
 
   const handleComplete = async () => {
     if (user?.id && questId) {
-      await saveProgress(user.id, questId)
+      await autoSave()
       navigate(`/quest/${questId}/results/1`)
     }
   }
 
+  if (showRoundTransition) {
+    return (
+      <RoundTransition
+        round={nextRound!}
+        onComplete={handleRoundTransitionComplete}
+      />
+    )
+  }
+
   const progressPercentage = Math.round(
-    ((currentQuestionIndex + 1) / questQuestions.length) * 100
+    ((currentQuestionIndex + 1) / QUEST_QUESTIONS.length) * 100
   )
+  const canAdvance = responses[currentQuestion.id]?.trim().length > 0
 
   return (
-    <div className="max-w-4xl mx-auto">
-      {/* Header */}
-      <div className="mb-8">
-        <div className="flex items-center justify-between mb-4">
-          <span className="eyebrow">The Architecture of You</span>
-          <span className="text-sm text-ink-soft">
-            Question {currentQuestionIndex + 1} of {questQuestions.length}
-          </span>
+    <div className="min-h-screen bg-paper py-8">
+      <div className="max-w-2xl mx-auto px-4">
+        {/* Global Progress */}
+        <div className="mb-8">
+          <div className="flex items-center justify-between mb-3">
+            <span className="eyebrow">The Architecture of You</span>
+            <span className="text-xs text-ink-soft font-mono">
+              {currentQuestionIndex + 1} / {QUEST_QUESTIONS.length}
+            </span>
+          </div>
+          <div className="w-full bg-line-soft rounded-full h-1.5">
+            <div
+              className="bg-teal h-1.5 rounded-full transition-all duration-300"
+              style={{ width: `${progressPercentage}%` }}
+            />
+          </div>
         </div>
-        <div className="w-full bg-line rounded-full h-2">
-          <div
-            className="bg-teal h-2 rounded-full transition-all duration-300"
-            style={{ width: `${progressPercentage}%` }}
+
+        {/* Round Header */}
+        <div className="mb-8">
+          <div className="eyebrow mb-2">
+            Round {currentRound} of 3 —{' '}
+            {currentRound === 1
+              ? 'The Pattern Finder'
+              : currentRound === 2
+                ? 'The Friction Test'
+                : 'The Market Reality Test'}
+          </div>
+          <p className="text-sm text-ink-soft">
+            {currentRound === 1
+              ? 'Finding what you actually do, before deciding what to call it.'
+              : currentRound === 2
+                ? 'Testing what is sustainable for you.'
+                : 'Discovering what could actually become valuable.'}
+          </p>
+        </div>
+
+        {/* Round Progress */}
+        <RoundProgress
+          completed={completedInRound}
+          total={questionsInRound.length}
+          questIds={questionsInRound.map((q) => q.id)}
+          responses={responses}
+        />
+
+        {/* Question Card */}
+        <div className="mb-12">
+          <QuestionCard
+            question={currentQuestion}
+            answer={responses[currentQuestion.id] || ''}
+            onAnswerChange={handleAnswer}
           />
         </div>
-      </div>
 
-      {/* Round Indicator */}
-      <div className="mb-8 p-4 bg-paper-light rounded">
-        <p className="eyebrow mb-1">
-          Round {currentRound} — {
-            currentRound === 1
-              ? 'Pattern Finder'
-              : currentRound === 2
-                ? 'Friction Test'
-                : 'Market Reality Test'
-          }
-        </p>
-        <p className="text-sm text-ink-soft">
-          {currentRound === 1
-            ? 'Finding what you actually do, before deciding what to call it.'
-            : currentRound === 2
-              ? 'Testing what is sustainable for you.'
-              : 'Discovering what could actually become valuable.'}
-        </p>
-      </div>
+        {/* Save Indicator */}
+        <SaveIndicator status={saveStatus} />
 
-      {/* Question */}
-      <div className="mb-12 p-8 bg-white border border-line rounded">
-        <h2 className="text-2xl font-serif mb-4">{currentQuestion.text}</h2>
-        {currentQuestion.hint && (
-          <p className="text-sm text-ink-soft mb-6 italic">
-            {currentQuestion.hint}
-          </p>
-        )}
-
-        <textarea
-          value={responses[currentQuestion.id] || ''}
-          onChange={(e) => handleAnswer(e.target.value)}
-          placeholder="Your answer..."
-          className="w-full h-32 p-4 border border-line rounded resize-none"
-        />
-      </div>
-
-      {/* Pattern Detection */}
-      {Object.keys(responses).length > 3 && (
-        <div className="mb-12 p-6 bg-paper-light rounded border border-amber">
+        {/* Navigation */}
+        <div className="flex gap-3 justify-between items-center">
           <button
-            onClick={() => {
-              detectPatterns()
-              setShowPatterns(!showPatterns)
-            }}
-            className="flex items-center gap-2 text-teal hover:text-amber font-medium"
+            onClick={handlePrevious}
+            disabled={currentQuestionIndex === 0}
+            className="btn btn-secondary disabled:opacity-50 disabled:cursor-not-allowed"
+            aria-label="Previous question"
           >
-            <span>{showPatterns ? '▼' : '▶'}</span>
-            <span>Pattern Detection ({patterns.length} detected)</span>
+            ← Previous
           </button>
 
-          {showPatterns && patterns.length > 0 && (
-            <div className="mt-4 space-y-3">
-              {patterns.slice(0, 5).map((pattern) => (
-                <div key={pattern.name} className="text-sm">
-                  <div className="flex items-center justify-between mb-1">
-                    <span className="font-medium text-teal">
-                      {pattern.name}
-                    </span>
-                    <span className="text-xs text-ink-soft">
-                      {pattern.strength}
-                    </span>
-                  </div>
-                  <p className="text-xs text-ink-soft">
-                    Appeared in {pattern.occurrences} answer
-                    {pattern.occurrences !== 1 ? 's' : ''}
-                  </p>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
+          <div className="text-center">
+            <p className="text-xs text-ink-soft font-mono">
+              {completedInRound} of {questionsInRound.length} in round
+            </p>
+          </div>
 
-      {/* Navigation */}
-      <div className="flex gap-4 justify-between mb-12">
-        <button
-          onClick={handlePrevious}
-          disabled={currentQuestionIndex === 0}
-          className="btn btn-secondary disabled:opacity-50"
-        >
-          ← Previous
-        </button>
-
-        <div className="flex gap-2">
-          {currentQuestionIndex > 0 && (
-            <span className="text-xs text-ink-soft self-center">
-              {roundQuestions.filter((q) => responses[q.id]).length} /{' '}
-              {roundQuestions.length} in this round
-            </span>
+          {!isLastQuestion ? (
+            <button
+              onClick={handleNext}
+              disabled={!canAdvance}
+              className="btn btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
+              aria-label="Next question"
+            >
+              Next →
+            </button>
+          ) : (
+            <button
+              onClick={handleComplete}
+              disabled={!canAdvance || isSaving}
+              className="btn btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
+              aria-label="Complete quest"
+            >
+              {isSaving ? 'Saving...' : 'View Results ✓'}
+            </button>
           )}
         </div>
 
-        {!isLastQuestion ? (
-          <button onClick={handleNext} className="btn btn-primary">
-            Next →
-          </button>
-        ) : (
-          <button onClick={handleComplete} className="btn btn-primary">
-            Complete Quest ✓
-          </button>
-        )}
-      </div>
-
-      {/* Info */}
-      <div className="p-4 bg-paper-light rounded text-sm text-ink-soft">
-        <p>
-          <strong>Tip:</strong> There are no wrong answers. This is an audit of
-          your actual life and work, not a personality test. Write what's true,
-          not what sounds impressive.
-        </p>
+        {/* Keyboard Hint */}
+        <div className="mt-8 p-3 bg-paper-light rounded text-xs text-ink-soft text-center">
+          <p>💡 Keyboard: ← → arrows to navigate • Write what is true, not what sounds impressive</p>
+        </div>
       </div>
     </div>
   )

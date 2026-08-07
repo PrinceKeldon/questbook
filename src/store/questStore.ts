@@ -21,8 +21,8 @@ interface QuestState {
   updateResponse: (questionId: string, answer: string) => void
   detectPatterns: () => void
   generateSkillsCanvas: () => Promise<void>
-  saveProgress: (userId: string, questId: string) => Promise<void>
-  completeQuestionnaire: (userId: string, questId: string) => Promise<void>
+  saveProgress: () => Promise<void>
+  completeQuestionnaire: () => Promise<void>
   createVersion: (userId: string, questId: string) => Promise<void>
   reset: () => void
 }
@@ -142,15 +142,16 @@ export const useQuestStore = create<QuestState>((set, get) => ({
     })
 
     // Score patterns
-    const scored = Object.values(patterns)
+    const scored: Pattern[] = Object.values(patterns)
       .map((p) => ({
         ...p,
-        strength:
+        strength: (
           p.occurrences >= 3
             ? 'strong'
             : p.occurrences >= 2
               ? 'medium'
-              : 'weak',
+              : 'weak'
+        ) as 'weak' | 'medium' | 'strong',
       }))
       .filter((p) => p.strength !== 'weak')
       .sort((a, b) => b.occurrences - a.occurrences)
@@ -208,7 +209,7 @@ export const useQuestStore = create<QuestState>((set, get) => ({
     }
   },
 
-  saveProgress: async (userId: string, questId: string) => {
+  saveProgress: async () => {
     try {
       const { currentQuestionnaire, responses } = get()
 
@@ -227,7 +228,7 @@ export const useQuestStore = create<QuestState>((set, get) => ({
     }
   },
 
-  completeQuestionnaire: async (userId: string, questId: string) => {
+  completeQuestionnaire: async () => {
     set({ loading: true })
     try {
       const { currentQuestionnaire, responses, skillsCanvas } = get()
