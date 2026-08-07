@@ -1,0 +1,146 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Custom font setup */
+@import url('https://fonts.googleapis.com/css2?family=DM+Serif+Display:wght@400&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&display=swap');
+
+/* Root colors matching PDF design system */
+:root {
+  --paper: #EDE7D9;
+  --paper-light: #F4F0E5;
+  --ink: #202C39;
+  --ink-soft: #4A5568;
+  --amber: #B5670E;
+  --amber-light: #DCA858;
+  --teal: #1F5F5B;
+  --line: #C7BFA9;
+  --line-soft: #DAD3BF;
+  --navy: #182430;
+  --navy-2: #101923;
+}
+
+* {
+  @apply box-border;
+}
+
+html {
+  @apply scroll-smooth;
+}
+
+body {
+  @apply bg-paper text-ink font-sans;
+  font-family: 'Archivo', sans-serif;
+  line-height: 1.5;
+}
+
+/* Typography */
+h1 {
+  @apply font-serif text-4xl font-normal;
+  font-family: 'DM Serif Display', serif;
+}
+
+h2 {
+  @apply font-serif text-3xl font-normal;
+  font-family: 'DM Serif Display', serif;
+}
+
+h3 {
+  @apply font-mono text-sm font-semibold tracking-wider uppercase;
+  font-family: 'IBM Plex Mono', monospace;
+}
+
+.eyebrow {
+  @apply font-mono text-xs font-semibold tracking-widest uppercase;
+  color: var(--amber);
+  font-family: 'IBM Plex Mono', monospace;
+}
+
+.eyebrow.teal {
+  color: var(--teal);
+}
+
+/* Utility classes */
+.rule {
+  @apply border-0 border-t;
+  border-color: var(--line);
+  border-width: 0.6pt;
+}
+
+.rule.strong {
+  @apply border-t-2;
+  border-color: var(--ink);
+}
+
+.rule.amber {
+  border-color: var(--amber);
+  width: 14mm;
+  margin-left: 0;
+}
+
+.writeline {
+  @apply border-b;
+  border-color: var(--line);
+  height: 6.4mm;
+  margin: 0;
+}
+
+.tag {
+  @apply inline-flex items-center gap-1 px-3 py-1 border rounded;
+  border-color: var(--teal);
+  color: var(--teal);
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 0.65rem;
+  letter-spacing: 0.05em;
+}
+
+/* Button styles */
+.btn {
+  @apply px-4 py-2 rounded transition-colors font-medium;
+}
+
+.btn-primary {
+  @apply bg-teal text-white hover:opacity-90;
+}
+
+.btn-secondary {
+  @apply bg-paper-light text-ink border border-line hover:bg-line-soft;
+}
+
+.btn-ghost {
+  @apply text-teal hover:underline;
+}
+
+/* Form inputs */
+input[type='text'],
+input[type='email'],
+input[type='password'],
+textarea,
+select {
+  @apply w-full px-3 py-2 border rounded;
+  border-color: var(--line);
+  font-family: 'Archivo', sans-serif;
+}
+
+input[type='text']:focus,
+input[type='email']:focus,
+input[type='password']:focus,
+textarea:focus,
+select:focus {
+  @apply outline-none;
+  border-color: var(--teal);
+  box-shadow: 0 0 0 3px rgba(31, 95, 91, 0.1);
+}
+
+/* Responsive utilities */
+@media (max-width: 768px) {
+  h1 {
+    @apply text-2xl;
+  }
+
+  h2 {
+    @apply text-xl;
+  }
+}
