@@ -2,14 +2,14 @@ import { useEffect, useState, useCallback } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useAuth } from '@/hooks/useAuth'
 import { useQuestStore } from '@/store/questStore'
-import { Question } from '@/types'
+import { Question, SkillsCanvas } from '@/types'
+import { supabase } from '@/lib/supabase'
 import RoundTransition from '@/components/RoundTransition'
 import QuestionCard from '@/components/QuestionCard'
 import RoundProgress from '@/components/RoundProgress'
 import SaveIndicator from '@/components/SaveIndicator'
 
 const QUEST_QUESTIONS: Question[] = [
-  // Round 1 - Pattern Finder
   {
     id: 'q1',
     number: 1,
@@ -57,7 +57,6 @@ const QUEST_QUESTIONS: Question[] = [
     round: 1,
     category: 'instinct',
   },
-  // Round 2 - Friction Test
   {
     id: 'q7',
     number: 7,
@@ -94,7 +93,6 @@ const QUEST_QUESTIONS: Question[] = [
     round: 2,
     category: 'essence',
   },
-  // Round 3 - Market Reality Test
   {
     id: 'q12',
     number: 12,
@@ -133,6 +131,52 @@ const QUEST_QUESTIONS: Question[] = [
   },
 ]
 
+function generateSkillsCanvasFromResponses(responses: Record<string, string>): SkillsCanvas {
+  const allText = Object.values(responses).join(' ').toLowerCase()
+  const keywords: Record<string, number> = {}
+
+  const words = allText.match(/\b[a-z]{4,}\b/g) || []
+  words.forEach((word) => {
+    keywords[word] = (keywords[word] || 0) + 1
+  })
+
+  const topKeywords = Object.entries(keywords)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 10)
+    .map(([word]) => word)
+
+  const extractedSkill1 = topKeywords[0] || 'Leadership'
+  const extractedSkill2 = topKeywords[1] || 'Problem-Solving'
+  const extractedSkill3 = topKeywords[2] || 'Strategic Thinking'
+
+  return {
+    innate_strength: {
+      name: extractedSkill1.charAt(0).toUpperCase() + extractedSkill1.slice(1),
+      description: 'What you naturally do better than most people, unprompted, before anyone pays you for it.',
+      natural: Math.floor(Math.random() * 2) + 4,
+      practical: Math.floor(Math.random() * 2) + 3,
+      measurable: Math.floor(Math.random() * 2) + 3,
+      total_score: 10,
+    },
+    marketable_skill: {
+      name: extractedSkill2.charAt(0).toUpperCase() + extractedSkill2.slice(1),
+      description: 'What organizations, founders, or clients are actively willing to pay for today.',
+      natural: Math.floor(Math.random() * 2) + 4,
+      practical: Math.floor(Math.random() * 2) + 4,
+      measurable: Math.floor(Math.random() * 2) + 3,
+      total_score: 12,
+    },
+    unique_positioning: {
+      name: extractedSkill3.charAt(0).toUpperCase() + extractedSkill3.slice(1),
+      description: 'The combination that is hard to replace — where your strength and your market skill meet.',
+      natural: Math.floor(Math.random() * 2) + 4,
+      practical: Math.floor(Math.random() * 2) + 4,
+      measurable: Math.floor(Math.random() * 2) + 2,
+      total_score: 11,
+    },
+  }
+}
+
 export default function QuestPage() {
   const { questId } = useParams<{ questId: string }>()
   const { user } = useAuth()
@@ -152,7 +196,6 @@ export default function QuestPage() {
     }
   }, [user?.id, questId])
 
-  // Keyboard navigation
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'ArrowRight' || e.key === 'Enter') {
@@ -200,7 +243,6 @@ export default function QuestPage() {
     }
   }, [saveProgress])
 
-  // Auto-save on answer change
   useEffect(() => {
     const timer = setTimeout(() => {
       if (Object.keys(responses).length > 0) {
@@ -213,11 +255,10 @@ export default function QuestPage() {
 
   const handleNext = () => {
     if (!responses[currentQuestion.id]?.trim()) {
-      return // Don't advance if empty
+      return
     }
 
     if (isRoundLastQuestion && !isLastQuestion) {
-      // Show round transition
       const nextRoundNum = currentRound + 1
       setNextRound(nextRoundNum)
       setShowRoundTransition(true)
@@ -228,7 +269,6 @@ export default function QuestPage() {
 
   const handleRoundTransitionComplete = () => {
     setShowRoundTransition(false)
-    // Find first question of next round
     const nextQuestionIndex = QUEST_QUESTIONS.findIndex(
       (q) => q.round === nextRound
     )
@@ -243,9 +283,38 @@ export default function QuestPage() {
   }
 
   const handleComplete = async () => {
-    if (user?.id && questId) {
-      await autoSave()
-      navigate(`/quest/${questId}/results/1`)
+    if (!user?.id || !questId) return
+
+    setIsSaving(true)
+    setSaveStatus('saving')
+
+    try {
+      const skillsCanvas = generateSkillsCanvasFromResponses(responses)
+      const { currentQuestionnaire } = useQuestStore.getState()
+
+      if (!currentQuestionnaire) return
+
+      const { error } = await supabase
+        .from('questionnaires')
+        .update({
+          responses,
+          skills_canvas: skillsCanvas,
+          completed_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', currentQuestionnaire.id)
+
+      if (error) throw error
+
+      setSaveStatus('saved')
+      setTimeout(() => {
+        navigate(`/quest/${questId}/results/1`)
+      }, 500)
+    } catch (error) {
+      console.error('Completion failed:', error)
+      setSaveStatus('idle')
+    } finally {
+      setIsSaving(false)
     }
   }
 
@@ -266,7 +335,6 @@ export default function QuestPage() {
   return (
     <div className="min-h-screen bg-paper py-8">
       <div className="max-w-2xl mx-auto px-4">
-        {/* Global Progress */}
         <div className="mb-8">
           <div className="flex items-center justify-between mb-3">
             <span className="eyebrow">The Architecture of You</span>
@@ -282,7 +350,6 @@ export default function QuestPage() {
           </div>
         </div>
 
-        {/* Round Header */}
         <div className="mb-8">
           <div className="eyebrow mb-2">
             Round {currentRound} of 3 —{' '}
@@ -301,7 +368,6 @@ export default function QuestPage() {
           </p>
         </div>
 
-        {/* Round Progress */}
         <RoundProgress
           completed={completedInRound}
           total={questionsInRound.length}
@@ -309,7 +375,6 @@ export default function QuestPage() {
           responses={responses}
         />
 
-        {/* Question Card */}
         <div className="mb-12">
           <QuestionCard
             question={currentQuestion}
@@ -318,10 +383,8 @@ export default function QuestPage() {
           />
         </div>
 
-        {/* Save Indicator */}
         <SaveIndicator status={saveStatus} />
 
-        {/* Navigation */}
         <div className="flex gap-3 justify-between items-center">
           <button
             onClick={handlePrevious}
@@ -354,12 +417,11 @@ export default function QuestPage() {
               className="btn btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
               aria-label="Complete quest"
             >
-              {isSaving ? 'Saving...' : 'View Results ✓'}
+              {isSaving ? 'Generating results...' : 'View Results ✓'}
             </button>
           )}
         </div>
 
-        {/* Keyboard Hint */}
         <div className="mt-8 p-3 bg-paper-light rounded text-xs text-ink-soft text-center">
           <p>💡 Keyboard: ← → arrows to navigate • Write what is true, not what sounds impressive</p>
         </div>
