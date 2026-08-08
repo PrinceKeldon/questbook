@@ -1,9 +1,16 @@
 # Questbook: Complete Development Summary
 
+**⚠️ IMPORTANT:** Read `QUESTBOOK_NORTH_STAR.md` first for the official product vision.
+
+This summary documents the technical build. The vision document explains the product's purpose and principles.
+
+---
+
 **Repository:** https://github.com/PrinceKeldon/questbook  
 **Latest Commit:** `68f93c2` (Add comprehensive ML instrumentation guide)  
 **Build Status:** ✅ Passing  
 **Launch Ready:** ✅ Yes (all MVP components complete)  
+**Vision:** Self-discovery system that helps users see themselves clearly enough to choose where they want to go (not a business-building tool)  
 
 ---
 
