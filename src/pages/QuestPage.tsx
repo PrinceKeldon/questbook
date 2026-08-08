@@ -4,6 +4,7 @@ import { useAuth } from '@/hooks/useAuth'
 import { useQuestStore } from '@/store/questStore'
 import { Question, SkillsCanvas } from '@/types'
 import { supabase } from '@/lib/supabase'
+import { detectPatterns, generateSkillDescription, calculateConfidenceScore } from '@/lib/patternDetection'
 import RoundTransition from '@/components/RoundTransition'
 import QuestionCard from '@/components/QuestionCard'
 import RoundProgress from '@/components/RoundProgress'
@@ -132,47 +133,49 @@ const QUEST_QUESTIONS: Question[] = [
 ]
 
 function generateSkillsCanvasFromResponses(responses: Record<string, string>): SkillsCanvas {
-  const allText = Object.values(responses).join(' ').toLowerCase()
-  const keywords: Record<string, number> = {}
+  // Build question metadata for pattern detection
+  const questionMetadata = QUEST_QUESTIONS.map((q) => ({
+    id: q.id,
+    round: q.round,
+    category: q.category,
+  }))
 
-  const words = allText.match(/\b[a-z]{4,}\b/g) || []
-  words.forEach((word) => {
-    keywords[word] = (keywords[word] || 0) + 1
-  })
+  // Detect top 3 skills using sophisticated algorithm
+  const topSkills = detectPatterns(responses, questionMetadata)
+  const [skill1, skill2, skill3] = topSkills
 
-  const topKeywords = Object.entries(keywords)
-    .sort((a, b) => b[1] - a[1])
-    .slice(0, 10)
-    .map(([word]) => word)
+  // Calculate confidence for each skill
+  const confidence1 = calculateConfidenceScore(responses, skill1, questionMetadata)
+  const confidence2 = calculateConfidenceScore(responses, skill2, questionMetadata)
+  const confidence3 = calculateConfidenceScore(responses, skill3, questionMetadata)
 
-  const extractedSkill1 = topKeywords[0] || 'Leadership'
-  const extractedSkill2 = topKeywords[1] || 'Problem-Solving'
-  const extractedSkill3 = topKeywords[2] || 'Strategic Thinking'
+  // Map confidence to scores (5-scale)
+  const confidenceToScore = (conf: number) => Math.round((conf / 100) * 5)
 
   return {
     innate_strength: {
-      name: extractedSkill1.charAt(0).toUpperCase() + extractedSkill1.slice(1),
-      description: 'What you naturally do better than most people, unprompted, before anyone pays you for it.',
-      natural: Math.floor(Math.random() * 2) + 4,
-      practical: Math.floor(Math.random() * 2) + 3,
-      measurable: Math.floor(Math.random() * 2) + 3,
-      total_score: 10,
+      name: skill1,
+      description: generateSkillDescription(skill1, responses),
+      natural: confidenceToScore(confidence1 * 1.0),
+      practical: confidenceToScore(confidence1 * 0.85),
+      measurable: confidenceToScore(confidence1 * 0.75),
+      total_score: confidenceToScore(confidence1),
     },
     marketable_skill: {
-      name: extractedSkill2.charAt(0).toUpperCase() + extractedSkill2.slice(1),
-      description: 'What organizations, founders, or clients are actively willing to pay for today.',
-      natural: Math.floor(Math.random() * 2) + 4,
-      practical: Math.floor(Math.random() * 2) + 4,
-      measurable: Math.floor(Math.random() * 2) + 3,
-      total_score: 12,
+      name: skill2,
+      description: generateSkillDescription(skill2, responses),
+      natural: confidenceToScore(confidence2 * 0.9),
+      practical: confidenceToScore(confidence2 * 1.0),
+      measurable: confidenceToScore(confidence2 * 0.95),
+      total_score: confidenceToScore(confidence2),
     },
     unique_positioning: {
-      name: extractedSkill3.charAt(0).toUpperCase() + extractedSkill3.slice(1),
-      description: 'The combination that is hard to replace — where your strength and your market skill meet.',
-      natural: Math.floor(Math.random() * 2) + 4,
-      practical: Math.floor(Math.random() * 2) + 4,
-      measurable: Math.floor(Math.random() * 2) + 2,
-      total_score: 11,
+      name: skill3,
+      description: generateSkillDescription(skill3, responses),
+      natural: confidenceToScore(confidence3 * 0.95),
+      practical: confidenceToScore(confidence3 * 0.95),
+      measurable: confidenceToScore(confidence3 * 0.8),
+      total_score: confidenceToScore(confidence3),
     },
   }
 }
