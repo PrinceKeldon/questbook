@@ -3,6 +3,8 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { useAuth } from '@/hooks/useAuth'
 import { supabase } from '@/lib/supabase'
 import { generatePersonalizedPDF } from '@/lib/generatePDF'
+import { captureSkillGeneration, logPDFDownload } from '@/lib/mlDataCollection'
+import ImmediateFeedbackForm from '@/components/ImmediateFeedbackForm'
 import { QuestionnaireResponse } from '@/types'
 
 export default function ResultsPage() {
@@ -18,6 +20,8 @@ export default function ResultsPage() {
   const [loading, setLoading] = useState(true)
   const [isGeneratingPDF, setIsGeneratingPDF] = useState(false)
   const [pdfError, setPdfError] = useState<string | null>(null)
+  const [showFeedback, setShowFeedback] = useState(false)
+  const [feedbackSubmitted, setFeedbackSubmitted] = useState(false)
 
   useEffect(() => {
     loadResults()
@@ -38,6 +42,31 @@ export default function ResultsPage() {
 
       if (error) throw error
       setQuestionnaire(data)
+
+      // Capture skill generation for ML training
+      if (data.skills_canvas && data.responses) {
+        await captureSkillGeneration({
+          questionnaire_id: data.id,
+          version: data.version,
+          skills_canvas: data.skills_canvas,
+          responses: data.responses,
+          question_count: 16,
+        })
+      }
+
+      // Check if user has already submitted feedback
+      const { data: existingFeedback } = await supabase
+        .from('immediate_feedback')
+        .select('id')
+        .eq('questionnaire_id', data.id)
+        .single()
+
+      if (!existingFeedback) {
+        // Show feedback form after 3 seconds
+        setTimeout(() => setShowFeedback(true), 3000)
+      } else {
+        setFeedbackSubmitted(true)
+      }
     } catch (error) {
       console.error('Error loading results:', error)
     } finally {
@@ -56,6 +85,10 @@ export default function ResultsPage() {
         questionnaire,
         userName: user.email?.split('@')[0] || 'User',
       })
+
+      // Log download for ML tracking
+      const filename = `Architecture_of_You_${user.email?.split('@')[0]}_${new Date().toISOString().split('T')[0]}.pdf`
+      await logPDFDownload(questionnaire.id, filename)
     } catch (error) {
       setPdfError(error instanceof Error ? error.message : 'Failed to generate PDF')
     } finally {
@@ -67,6 +100,11 @@ export default function ResultsPage() {
     if (user?.id && questId) {
       navigate(`/quest/${questId}`)
     }
+  }
+
+  const handleFeedbackSubmit = () => {
+    setShowFeedback(false)
+    setFeedbackSubmitted(true)
   }
 
   if (loading) {
@@ -358,6 +396,33 @@ export default function ResultsPage() {
           Back to Dashboard
         </button>
       </div>
+
+      {/* Feedback Form Modal */}
+      {showFeedback && user && questionnaire && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-lg max-h-[90vh] overflow-y-auto max-w-2xl w-full">
+            <div className="p-6">
+              <ImmediateFeedbackForm
+                user_id={user.id}
+                questionnaire_id={questionnaire.id}
+                detected_skills={{
+                  skill_1: questionnaire.skills_canvas?.innate_strength?.name || 'Skill 1',
+                  skill_2: questionnaire.skills_canvas?.marketable_skill?.name || 'Skill 2',
+                  skill_3: questionnaire.skills_canvas?.unique_positioning?.name || 'Skill 3',
+                }}
+                onSubmit={handleFeedbackSubmit}
+              />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Feedback submitted notice */}
+      {feedbackSubmitted && !showFeedback && (
+        <div className="fixed bottom-4 right-4 bg-teal text-white p-4 rounded shadow-lg">
+          <p className="text-sm">✓ Thank you for your feedback</p>
+        </div>
+      )}
     </div>
   )
 }
